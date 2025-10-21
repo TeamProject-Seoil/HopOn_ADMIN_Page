@@ -1,8 +1,7 @@
-<!-- src/pages/NoticesPage.vue -->
 <template>
   <div class="stack">
     <div class="card">
-      <h1 style="margin:0">공지사항</h1>
+      <h1 style="margin:0">공지사항 관리</h1>
       <p class="badge" style="margin-top:8px;font-size: 16px;">관리자 전용</p>
     </div>
 
@@ -21,7 +20,7 @@
 
     <!-- 검색/필터 -->
     <div class="card toolbar">
-      <input class="input" v-model.trim="q" placeholder="검색 (제목/내용)"/>
+      <input class="input" v-model.trim="q" placeholder="검색 (제목/내용)" @keyup.enter="goPage(1)"/>
 
       <!-- 대상 필터만 유지 -->
       <select class="input sort-select" v-model="target" title="공지 대상">
@@ -31,7 +30,19 @@
         <option value="DRIVER">기사</option>
       </select>
 
-      <button class="btn-ghost search-btn" @click="goPage(1)">검색</button>
+      <button class="btn-ghost search-btn" @click="goPage(1)">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"
+                fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+
+      <!-- ✅ 최신순/오래된순 토글 -->
+      <div class="seg">
+        <button class="seg-btn" :class="{active: sortDir==='desc'}" @click="setSortDir('desc')">최신순</button>
+        <button class="seg-btn" :class="{active: sortDir==='asc'}"  @click="setSortDir('asc')">오래된순</button>
+      </div>
 
       <div class="spacer"></div>
       <button class="btn" @click="openEditor()">새 공지</button>
@@ -57,7 +68,7 @@
           </div>
 
           <div class="row-actions">
-            <!-- ✅ 보기(조회수 증가 없음) -->
+            <!-- 보기(조회수 증가 없음) -->
             <button class="btn-ghost" @click="openViewer(n)">보기</button>
             <button class="btn-ghost" @click="openEditor(n)">수정</button>
             <button class="btn-danger" @click="askDelete(n)">삭제</button>
@@ -144,7 +155,7 @@
       </div>
     </div>
 
-    <!-- ✅ 내용 보기 모달 (조회수 증가 X) -->
+    <!-- 내용 보기 모달 (조회수 증가 X) -->
     <div v-if="viewer.open" class="modal-backdrop" @click.self="closeViewer">
       <div class="card modal-card view-card">
         <div class="modal-header">
@@ -181,6 +192,7 @@ const tab = ref('ALL')
 
 const q = ref('')
 const target = ref('')   // 대상은 드롭다운 유지
+const sortDir = ref('desc') // ✅ 최신순(기본), asc=오래된순
 
 const rows = ref([])
 const page = ref(1)
@@ -236,14 +248,22 @@ function switchTab(next){
   fetchList()
 }
 
+/* ✅ 정렬 토글 */
+function setSortDir(dir){
+  if (sortDir.value === dir) return
+  sortDir.value = dir
+  page.value = 1
+  fetchList()
+}
+
 /* 목록 조회 */
 async function fetchList(){
   error.value=''; msg.value=''
   try{
-    const params = { page: page.value-1, size: size.value, sort: 'updatedAt,desc' }
+    const params = { page: page.value-1, size: size.value, sort: `updatedAt,${sortDir.value}` } // ✅ 토글 반영
     if (q.value) params.q = q.value
     if (target.value) params.target = target.value
-    if (tab.value && tab.value !== 'ALL') params.type = tab.value   // ✅ 유형은 탭에서 전달
+    if (tab.value && tab.value !== 'ALL') params.type = tab.value   // 유형은 탭에서 전달
 
     const { data } = await api.get('/admin/notices', { params })
     rows.value = data.content || []
@@ -376,9 +396,17 @@ fetchList()
   --card: #0f1627;
   --card-2:#0b1220;
 
-  /* ✨ 모달 백드롭(투명X, 살짝 블러) */
+  /* 모달 백드롭 */
   --backdrop-dim: rgba(0,0,0,.55);
+
+  /* ✅ Drivers와 동일한 타이포 변수 */
+  --fs-base: 15px;
+  --fs-small: 13.5px;
 }
+
+/* ✅ Drivers와 동일 스케일 적용 */
+.card, .tabs, .toolbar, .row, .pager-wrap { font-size: var(--fs-base); }
+.sub { font-size: calc(var(--fs-small)); line-height: 1.55; }
 
 /* 탭 */
 .tabs{ display:flex; gap:8px; }
@@ -391,7 +419,7 @@ fetchList()
 .tab-btn.active{ background:var(--primary); border-color:var(--primary); color:#fff; }
 .tab-badge{ opacity:.9; }
 
-/* 폼 공통 */
+/* 폼 공통 (Drivers와 동일 높이/폰트) */
 .input{
   background:#0b1324; border:1px solid var(--border); color:var(--text);
   border-radius:8px; padding:8px 10px; outline:none;
@@ -400,23 +428,34 @@ fetchList()
 .input:focus{ border-color:#2b3b66; box-shadow:0 0 0 3px rgba(59,130,246,.2); }
 
 .toolbar{ display:flex; gap:8px; margin-bottom:10px; align-items:center; }
-.search-btn{ display:inline-flex; align-items:center; gap:6px; writing-mode:horizontal-tb; height:60px; width:60px; }
+.search-btn{
+  display:inline-flex; align-items:center; gap:6px; writing-mode:horizontal-tb;
+  height:60px; width:60px; /* ✅ Drivers와 동일 */
+}
 .sort-select{ width:160px; height:60px; font-size:16px; }
 .spacer{ flex:1; }
+
+/* ✅ 정렬 토글 스타일 */
+.seg{ display:inline-flex; align-items:center; gap:0; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-left:8px; height:60px; }
+.seg-btn{
+  background:transparent; color:var(--text); border:none; padding:0 14px; cursor:pointer; font-weight:600; height:100%;
+}
+.seg-btn + .seg-btn{ border-left:1px solid var(--border); }
+.seg-btn.active{ background:var(--primary); color:#fff; }
 
 /* 오류 박스 */
 .error-box{ padding:10px; border:1px solid #5a2a2a; background:#3b1d1d; color:#fca5a5; border-radius:8px; margin-bottom:10px; }
 
-/* 리스트 행 */
+/* 리스트 행 (Drivers 타이틀/배지 사이즈 동기화) */
 .row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; }
 .row-left{ min-width:0; }
 .row-actions{ display:flex; gap:8px; align-items:center; }
-.title-line{ font-weight:600; display:flex; align-items:center; gap:8px; }
-.sub{ color:var(--muted); font-size:12px; margin-top:4px; }
+.title-line{ font-weight:600; display:flex; align-items:center; gap:8px; font-size: 15.5px; } /* ✅ */
+.sub{ color:var(--muted); margin-top:4px; }
 .ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; max-width:48vw; }
 
-/* 뱃지 */
-.badge{ border:1px solid var(--border); padding:2px 8px; border-radius:999px; font-size:12px; display:inline-block; }
+/* 뱃지 (✅ 13px) */
+.badge{ border:1px solid var(--border); padding:2px 8px; border-radius:999px; font-size:13px; display:inline-block; } /* ✅ */
 
 /* 페이저 */
 .pager-footer{ margin-top:14px; padding:10px 0 16px; display:flex; justify-content:center; }
@@ -431,11 +470,11 @@ fetchList()
 .pager-btn.active{ background:var(--primary); border-color:var(--primary); color:#fff; }
 .pager-meta{ margin-left:8px; color:var(--muted); font-size:12px; }
 
-/* 버튼 */
+/* 버튼 (Drivers와 동일 폰트/패딩/높이/라운드) */
 .btn, .btn-ghost, .btn-danger, .btn-warning {
-  border:1px solid transparent; border-radius:10px; padding:8px 12px; cursor:pointer;
+  border:1px solid transparent; border-radius:12px; padding:10px 14px; cursor:pointer;
   writing-mode:horizontal-tb; font-weight:600; transition:transform .02s ease, background .2s ease, border-color .2s ease, color .2s ease, box-shadow .2s ease;
-  min-height:40px;
+  min-height:40px; font-size:14.5px; /* ✅ */
 }
 .btn:active, .btn-danger:active, .btn-warning:active, .btn-ghost:active{ transform:translateY(1px); }
 

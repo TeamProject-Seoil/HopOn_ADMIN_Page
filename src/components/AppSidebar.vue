@@ -12,12 +12,16 @@
     </router-link>
 
     <router-link :to="{name:'drivers'}" active-class="active">
-      <span></span><span>기사 관리</span>
+      <span></span><span>회원 승인 관리</span>
     </router-link>
 
     <!-- ✅ 공지사항 메뉴 추가 -->
     <router-link :to="{name:'notices'}" active-class="active">
       <span></span><span>공지사항 관리</span>
+    </router-link>
+
+    <router-link :to="{name:'inquiries'}" active-class="active">
+      <span></span><span>문의 관리</span>
     </router-link>
 
     <router-link :to="{name:'settings'}" active-class="active">

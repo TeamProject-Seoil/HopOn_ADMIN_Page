@@ -18,24 +18,28 @@
       </button>
     </div>
 
-    <div class="card">
-      <!-- 검색 + 정렬바 -->
-      <div class="toolbar">
-        <input class="input" v-model.trim="q" placeholder="검색 (userid / username)"/>
-        <button class="btn-ghost search-btn" @click="goPage(1)">
-          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
+    <!-- ✅ 검색/정렬 바 -->
+    <div class="card toolbar">
+      <input class="input" v-model.trim="q" placeholder="검색 (userid / username)" @keyup.enter="goPage(1)"/>
+      
+      
+      <button class="btn-ghost search-btn" @click="goPage(1)">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"
+                fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
 
-        <select v-model="sortDir" class="input sort-select" title="가입일 정렬">
-          <option value="asc">가입일 오름차순</option>
-          <option value="desc">가입일 내림차순</option>
-        </select>
+      <!-- ✅ 가입일 최신순/오래된순 세그먼트 -->
+      <div class="seg">
+        <button class="seg-btn" :class="{active: sortDir==='desc'}" @click="setSort('desc')">최신순</button>
+        <button class="seg-btn" :class="{active: sortDir==='asc'}"  @click="setSort('asc')">오래된순</button>
       </div>
+    </div>
 
+    <!-- ✅ 리스트 카드 -->
+    <div class="card">
       <div v-if="error" class="error-box">{{ error }}</div>
 
       <div v-else-if="rows.length===0" style="color:var(--muted)">
@@ -230,7 +234,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onBeforeUnmount, nextTick, onMounted, onBeforeUnmount as onBU } from 'vue'
+import { ref, reactive, computed, watch, onBeforeUnmount, nextTick, onMounted } from 'vue'
 import api from '@/api/http'
 
 /* ─ tabs ─ */
@@ -312,7 +316,7 @@ async function confirmSubmit() {
 /* 모달 ESC 닫기 */
 function onKey(e){ if(e.key==='Escape'){ if(confirm.open) closeConfirm(); if(preview.open) closePreview(); } }
 onMounted(()=>document.addEventListener('keydown', onKey))
-onBU(()=>document.removeEventListener('keydown', onKey))
+onBeforeUnmount(()=>document.removeEventListener('keydown', onKey))
 
 /* pagination */
 const size = ref(10)
@@ -320,9 +324,14 @@ const page = ref(1)
 const total = ref(0)
 const totalPages = ref(0)
 
-/* 가입일 정렬 (기본 asc) */
-const sortDir = ref('asc')
-watch(sortDir, () => { page.value = 1; fetchList() })
+/* ✅ 가입일 정렬: 최신순 기본 */
+const sortDir = ref('desc')
+function setSort(dir){
+  if (sortDir.value === dir) return
+  sortDir.value = dir
+  page.value = 1
+  fetchList()
+}
 
 /* 그룹 네비(5개) */
 const groupStart = computed(() => Math.floor((page.value - 1) / 5) * 5 + 1)
@@ -374,7 +383,14 @@ async function fetchList() {
            : '/admin/drivers/rejected'
 
   try {
-    const { data } = await api.get(ep, { params: { search: q.value, size: size.value, page: page.value - 1, sort: `createdAt,${sortDir.value}` }})
+    const { data } = await api.get(ep, {
+      params: {
+        search: q.value,
+        size: size.value,
+        page: page.value - 1,
+        sort: `createdAt,${sortDir.value}`
+      }
+    })
     const list = (data.content || []).map(u => ({ ...u, avatarUrl: '' }))
     rows.value = list
     total.value = data.totalElements ?? 0
@@ -527,8 +543,15 @@ fetchList()
 .input:focus{ border-color:#2b3b66; box-shadow:0 0 0 3px rgba(59,130,246,.2); }
 
 .toolbar{ display:flex; gap:8px; margin-bottom:10px; align-items:center; }
-.search-btn{ display:inline-flex; align-items:center; gap:6px; writing-mode:horizontal-tb; height: 60px; }
-.sort-select{ width:160px; height: 60px; font-size: 16px;}
+.search-btn{ display:inline-flex; align-items:center; gap:6px; writing-mode:horizontal-tb; height: 60px; width:60px; }
+
+/* ✅ 정렬 세그먼트 */
+.seg{ display:inline-flex; align-items:center; gap:0; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-left:8px; height:60px; }
+.seg-btn{
+  background:transparent; color:var(--text); border:none; padding:0 14px; cursor:pointer; font-weight:600; height:100%;
+}
+.seg-btn + .seg-btn{ border-left:1px solid var(--border); }
+.seg-btn.active{ background:var(--primary); color:#fff; }
 
 /* 오류 박스 */
 .error-box{ padding:10px; border:1px solid #5a2a2a; background:#3b1d1d; color:#fca5a5; border-radius:8px; margin-bottom:10px; }
@@ -548,7 +571,6 @@ fetchList()
 .badge{ border:1px solid var(--border); padding:2px 8px; border-radius:999px; font-size:12px; display:inline-block; }
 .badge-ok{ background:#12331f; border-color:#245c38; color:#86efac; }
 .badge-warn{ background:#3b1d1d; border-color:#5a2a2a; color:#fca5a5; }
-/* 회사명 뱃지 스타일 */
 .badge-company{
   background:#12203f;
   border-color:#233153;
@@ -612,23 +634,18 @@ fetchList()
 .btn-ghost:hover{ background:#1a2540; }
 
 /* 모달 공통 */
-/* ✨ 화면 전체를 적당히 어둡게 (투명X) */
-:root, :host{
-  --backdrop-dim: rgba(0,0,0,.55); /* 0.45~0.65로 취향 조절 */
-}
-
+:root, :host{ --backdrop-dim: rgba(0,0,0,.55); }
 .modal-backdrop{
   position:fixed; inset:0; display:grid; place-items:center;
-  background: var(--backdrop-dim);   /* ✅ 이제 흐릿한 어두움 */
-  /* 선택: 약간의 블러로 집중감 추가 */
+  background: var(--backdrop-dim);
   backdrop-filter: blur(2px);
   z-index:60;
   animation:fadeIn .12s ease;
 }
+@keyframes fadeIn { from{ opacity:0 } to{ opacity:1 } }
 
-/* 모달 카드(안쪽)는 진하게 검정 */
 .modal-card{
-  background:#000;      /* 그대로 모달만 검정 */
+  background:#000;
   color:#fff;
   border:1px solid #1b2744;
   border-radius:16px;
@@ -636,10 +653,9 @@ fetchList()
   transform:translateY(6px);
   animation:pop .14s ease forwards;
 }
+@keyframes pop { to { transform:translateY(0) } }
 
-/* (선택) 모달 열릴 때 body 스크롤 잠금 */
 body:has(.modal-backdrop){ overflow:hidden; }
-
 
 .modal-header{
   display:flex; justify-content:space-between; align-items:center; padding:8px 10px 10px; border-bottom:1px solid #1b2744;
@@ -649,29 +665,26 @@ body:has(.modal-backdrop){ overflow:hidden; }
 .icon-circle{ width:28px; height:28px; border-radius:999px; display:grid; place-items:center; background:#12203f; color:#c9d5ff; }
 
 /* ─ 미리보기 모달 ─ */
-.license-card{
-  width:min(840px, 94vw);
-  max-height:90vh; padding:12px;
-}
+.license-card{ width:min(980px, 96vw); max-height:92vh; padding:14px; }
 .modal-body{
-  display:flex; flex-direction:row; gap:16px; align-items:flex-start; max-height:70vh; overflow:auto; padding:10px 8px 8px;
+  display:flex; flex-direction:row; gap:18px; align-items:flex-start; max-height:78vh; overflow:auto; padding:12px 10px 10px;
 }
-.license-box{ display:grid; place-items:center; padding:6px; border:1px solid #233153; border-radius:12px; background:var(--card-2);
-  max-width:min(60vw,520px); max-height:min(62vh,640px); overflow:auto; }
-.license-img{ width:auto; height:auto; max-width:min(58vw,500px); max-height:min(58vh,600px); object-fit:contain; display:block; image-rendering:auto; }
+.license-box{ display:grid; place-items:center; padding:8px; border:1px solid #233153; border-radius:12px; background:var(--card-2);
+  max-width:min(66vw,720px); max-height:min(78vh,820px); overflow:auto; }
+.license-img{ width:auto; height:auto; max-width:100%; max-height:min(76vh,800px); object-fit:contain; display:block; image-rendering:auto; }
 @media (max-width:600px){
   .modal-body{ flex-direction:column; }
-  .license-box{ max-width:85vw; max-height:55vh; }
-  .license-img{ max-width:82vw; max-height:52vh; }
+  .license-box{ max-width:92vw; max-height:64vh; }
+  .license-img{ max-width:90vw; max-height:62vh; }
 }
-.license-info{ flex:1; min-width:240px; }
-.license-info-table{ width:100%; border-collapse:collapse; font-size:14px; line-height:1.6; margin-top:4px; }
-.license-info-table td{ padding:8px 10px; vertical-align:top; border-bottom:1px solid #1b2744; }
-.license-info-table td:first-child{ color:#aab6d6; width:110px; white-space:nowrap; }
+.license-info{ flex:1; min-width:260px; }
+.license-info-table{ width:100%; border-collapse:collapse; font-size:15px; line-height:1.7; margin-top:6px; }
+.license-info-table td{ padding:10px 12px; vertical-align:top; border-bottom:1px solid #1b2744; }
+.license-info-table td:first-child{ color:#aab6d6; width:120px; white-space:nowrap; font-weight:600; }
 .license-info-table tr:last-child td{ border-bottom:none; }
 .license-warning{ margin-top:10px; color:#fca5a5; font-size:12px; line-height:1.4; white-space:pre-line; }
 
-/* ─ 확인 모달 (승인/거절/대기) ─ */
+/* ─ 확인 모달 ─ */
 .confirm-card{
   width:min(520px, 92vw);
   max-height:80vh; padding:10px 10px 12px;
@@ -691,49 +704,19 @@ body:has(.modal-backdrop){ overflow:hidden; }
 
 /* 카드 */
 .card{ background:var(--card); border:1px solid #1b2744; border-radius:12px; padding:12px; }
-.card.modal-card { 
-  background:#000 !important;  /* 모달 카드만 완전 검정 */
-}
-
-.confirm-card, .license-card{
-  background:#000 !important;  /* (원하면) 두 모달 타입 모두 강제 검정 */
-}
+.card.modal-card { background:#000 !important; }
+.confirm-card, .license-card{ background:#000 !important; }
 .stack{ display:flex; flex-direction:column; gap:10px; }
 
-/* === 대기 버튼 보이는 문제 강제 해결 === */
-button.btn-warning {
-  appearance:none; -webkit-appearance:none;
-  background: var(--warning, #f59e0b) !important;
-  border-color: var(--warning-600, #d97706) !important;
-  color:#111 !important;
-}
-button.btn-warning:hover,
-button.btn-warning:focus {
-  background: var(--warning-600, #d97706) !important;
-  border-color: var(--warning-600, #d97706) !important;
-  color:#111 !important;
-}
-button.btn-warning.strong {
-  box-shadow:0 0 0 3px rgba(245,158,11,.28);
-}
-button.btn-warning:disabled{
-  opacity:.7;
-  filter: saturate(.9);
-  cursor:not-allowed;
-}
-/* =========================
-   🔧 PREVIEW(자격증) 모달 확대 + 타이포 키움
-   ========================= */
-
-/* 이 화면 기본 글자 크기 살짝 ↑ */
+/* === Notices와 스케일 맞춤 === */
 :root, :host{
-  --fs-base: 15px;     /* 필요시 16px까지 올려도 OK */
+  --fs-base: 15px;
   --fs-small: 13.5px;
 }
 .card, .tabs, .toolbar, .row-line, .pager-wrap { font-size: var(--fs-base); }
 .sub { font-size: calc(var(--fs-small)); line-height: 1.55; }
 
-/* 버튼 텍스트/클릭 타겟 ↑ */
+/* 버튼 스케일 */
 .btn, .btn-ghost, .btn-danger, .btn-warning {
   font-size: 14.5px;
   padding: 10px 14px;
@@ -741,67 +724,13 @@ button.btn-warning:disabled{
   border-radius: 12px;
 }
 
-/* ───────── 미리보기 모달(license-card) 크게 ───────── */
-.license-card{
-  width: min(980px, 96vw);   /* 840 → 980 */
-  max-height: 92vh;          /* 90 → 92 */
-  padding: 14px;
-  font-size: var(--fs-base);
-}
-
-.modal-header{ padding: 10px 12px; }
-.modal-title{ gap: 12px; font-size: 16px; }
-.icon-circle{ width: 32px; height: 32px; }
-
-/* 모달 내부 레이아웃 여유 ↑ */
-.modal-body{
-  gap: 18px;
-  max-height: 78vh;          /* 70 → 78 */
-  padding: 12px 10px 10px;
-}
-
-/* 이미지 박스 자체를 더 크게 */
-.license-box{
-  padding: 8px;
-  max-width: min(66vw, 720px);                  /* 60vw/520px → 66vw/720px */
-  max-height: min(78vh, 820px);                 /* 62vh/640px → 78vh/820px */
-}
-
-/* 실제 이미지가 차지할 수 있는 최대 사이즈 ↑ */
-.license-img{
-  max-width: 100%;
-  max-height: min(76vh, 800px);                 /* 58vh/600px → 76vh/800px */
-  object-fit: contain;
-}
-
-/* 우측 정보영역도 타이포/여백 ↑ */
-.license-info{ min-width: 260px; }
-.license-info-table{
-  font-size: 15px;                               /* 14 → 15 */
-  line-height: 1.7;
-  margin-top: 6px;
-}
-.license-info-table td{ padding: 10px 12px; }
-.license-info-table td:first-child{
-  width: 120px;
-  font-weight: 600;
-}
-
-/* 작은 화면 대응(세로로 쌓일 때도 크게 보이도록) */
-@media (max-width: 600px){
-  .license-card{ width: 96vw; }
-  .modal-body{ flex-direction: column; max-height: 80vh; }
-  .license-box{ max-width: 92vw; max-height: 64vh; }
-  .license-img{ max-width: 90vw; max-height: 62vh; }
-  .license-info{ width: 100%; }
-}
-
-/* ───────── 확인 모달도 타이포 약간 ↑ (선택) ───────── */
-.confirm-card{ font-size: var(--fs-base); }
-.confirm-msg{ font-size: 15px; }
-
-/* 리스트 행 가독성 ↑ (선택) */
+/* 리스트 타이틀/배지 크기 */
 .title-line{ font-size: 15.5px; }
 .badge{ font-size: 13px; }
 
+/* 대기 버튼 가시성 */
+button.btn-warning { appearance:none; -webkit-appearance:none; background: var(--warning, #f59e0b) !important; border-color: var(--warning-600, #d97706) !important; color:#111 !important; }
+button.btn-warning:hover, button.btn-warning:focus { background: var(--warning-600, #d97706) !important; border-color: var(--warning-600, #d97706) !important; color:#111 !important; }
+button.btn-warning.strong { box-shadow:0 0 0 3px rgba(245,158,11,.28); }
+button.btn-warning:disabled{ opacity:.7; filter: saturate(.9); cursor:not-allowed; }
 </style>

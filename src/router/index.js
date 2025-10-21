@@ -7,6 +7,7 @@ import DashboardPage from '@/pages/DashboardPage.vue'
 import UsersPage from '@/pages/UsersPage.vue'
 import DriversPage from '@/pages/DriversPage.vue'
 import SettingsPage from '@/pages/SettingsPage.vue'
+import InquiriesPage from '@/pages/InquiriesPage.vue'
 
 // ✅ 공지 페이지 추가
 import NoticesPage from '@/pages/NoticesPage.vue'
@@ -24,6 +25,8 @@ const routes = [
   { path: '/settings',  name: 'settings',  component: SettingsPage,  meta: { requiresAuth: true, title: '설정' } },
 
   { path: '/:pathMatch(.*)*', redirect: '/' },
+
+  { path: '/inquiries', name: 'inquiries', component: InquiriesPage, meta: { requiresAuth: true, title: '문의 관리' } },
 ]
 
 const router = createRouter({

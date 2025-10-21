@@ -11,7 +11,7 @@
       <!-- 오른쪽: 공지사항 / 문의 / (환경)서버상태+버전 -->
       <nav class="links" aria-label="푸터 링크">
         <router-link class="link" to="/notices" title="공지사항">공지사항</router-link>
-        <router-link class="link" to="/support" title="문의">문의</router-link>
+        <router-link class="link" to="/inquiries" title="문의">문의</router-link>
 
         <span class="dot" aria-hidden="true">•</span>
 

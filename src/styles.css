@@ -1,0 +1,71 @@
+:root{
+  --bg:#0b1220;
+  --panel:#121a2b;
+  --muted:#7a8aa0;
+  --text:#eaf0ff;
+  --primary:#3b82f6;
+  --border:#1f2a44;
+  --danger:#ef4444;
+}
+*{box-sizing:border-box}
+html,body,#app{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,AppleGothic,Malgun Gothic,sans-serif}
+
+/* 레이아웃 */
+.header{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:10}
+.sidebar{width:260px;background:var(--panel);border-right:1px solid var(--border);padding:12px 8px;display:flex;flex-direction:column;gap:6px}
+.sidebar a{display:flex;gap:8px;align-items:center;padding:10px 12px;border-radius:8px;color:var(--text);text-decoration:none}
+.sidebar a.active, .sidebar a:hover{background:#1a2540}
+.brand{display:flex;gap:10px;align-items:center;font-weight:700}
+.container{display:flex;flex:1;min-height:0}
+.main {
+  flex: 1;
+  padding: 16px;
+  min-width: 0;
+  padding-bottom: 60px; /* 🔹 푸터 높이(44px)보다 살짝 여유 */
+}
+
+.footer{height:44px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--border);background:var(--panel);color:var(--muted)}
+
+/* 카드/버튼/폼 */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+.btn{background:var(--primary);border:none;color:white;padding:10px 14px;border-radius:10px;cursor:pointer}
+.btn[disabled]{opacity:.6;cursor:not-allowed}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:10px}
+.input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#0f1627;color:var(--text)}
+.form-row{display:flex;flex-direction:column;gap:10px}
+.badge{display:inline-block;background:#1a2540;border:1px solid var(--border);color:var(--muted);padding:4px 8px;border-radius:999px;font-size:12px}
+.stack{display:grid;gap:12px}
+
+/* 로그인 중앙 정렬 */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px}
+.avatar{width:28px;height:28px;border-radius:50%;background:#1a2540;display:flex;align-items:center;justify-content:center;font-size:12px;color:#cbd5e1;border:1px solid var(--border)}
+
+/* 레이아웃 */
+.layout{
+  /* ✅ 전체 화면 세로 채우기 */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.container{
+  /* ✅ 헤더 아래~푸터 위 공간을 전부 차지 */
+  display: flex;
+  flex: 1;
+  min-height: 0; /* overflow 계산 안정화 */
+}
+
+/* 기존에 있던 .sidebar 정의에 아래 속성 '추가' */
+.sidebar{
+  /* ✅ 헤더 56px 아래로 달라붙음 + 뷰포트 높이 계산 */
+  position: sticky;
+  top: 56px;                          /* 헤더 높이와 동일 */
+  height: calc(100vh - 56px - 44px);  /* 헤더(56) + 고정 푸터(44) 제외 */
+  overflow: auto;                     /* 메뉴 많아지면 내부 스크롤 */
+}
+
+/* 메인 영역은 고정 푸터와 겹치지 않도록 여유 (이미 있는 값 유지) */
+.main{
+  padding-bottom: 60px; /* 푸터 44px보다 살짝 크게 */
+}

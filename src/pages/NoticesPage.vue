@@ -5,7 +5,7 @@
       <p class="badge" style="margin-top:8px;font-size: 16px;">관리자 전용</p>
     </div>
 
-    <!-- ✅ 유형 탭 -->
+    <!-- ✅ 유형 탭 + (갯수) -->
     <div class="tabs card">
       <button
         v-for="t in tabs"
@@ -14,7 +14,7 @@
         :class="{ active: tab===t.key }"
         @click="switchTab(t.key)"
       >
-        {{ t.label }}
+        {{ t.label }} <span class="tab-badge">({{ counts[t.key] ?? 0 }})</span>
       </button>
     </div>
 
@@ -205,6 +205,14 @@ const error = ref('')
 const saveLoading = ref(false)
 const deleteLoading = ref(false)
 
+/* ✅ 탭 (갯수) 상태 */
+const counts = reactive({
+  ALL: 0,
+  INFO: 0,
+  UPDATE: 0,
+  MAINTENANCE: 0,
+})
+
 /* 에디터 */
 const editor = reactive({
   open:false, id:null, title:'', content:'', noticeType:'INFO', targetRole:'ALL'
@@ -256,9 +264,42 @@ function setSortDir(dir){
   fetchList()
 }
 
+/* ✅ (갯수) 계산: 필터(q, target)를 반영해 유형별 총합을 병렬로 조회 */
+async function fetchCounts(){
+  const base = { page: 0, size: 1 } // totalElements만 필요
+  if (q.value) base.q = q.value
+  if (target.value) base.target = target.value
+
+  const req = (typeKey) => {
+    const params = { ...base }
+    if (typeKey !== 'ALL') params.type = typeKey
+    // 정렬은 갯수엔 영향 X이지만, 백엔드 정렬 파라미터 필수라면 안전하게 포함
+    params.sort = `updatedAt,${sortDir.value}`
+    return api.get('/admin/notices', { params })
+  }
+
+  try{
+    const [allRes, infoRes, updRes, mntRes] = await Promise.all([
+      req('ALL'), req('INFO'), req('UPDATE'), req('MAINTENANCE')
+    ])
+    counts.ALL = allRes?.data?.totalElements ?? 0
+    counts.INFO = infoRes?.data?.totalElements ?? 0
+    counts.UPDATE = updRes?.data?.totalElements ?? 0
+    counts.MAINTENANCE = mntRes?.data?.totalElements ?? 0
+  }catch(e){
+    // 카운트 조회 실패해도 화면이 막히진 않도록만 처리
+    // 필요시 msg 또는 error로 노출 가능
+  }
+}
+
 /* 목록 조회 */
 async function fetchList(){
   error.value=''; msg.value=''
+
+  // ✅ 목록과 동시에 최신 카운트도 갱신
+  //    (탭/검색/필터/정렬/저장/삭제 등 모든 진입점에서 fetchList()를 쓰므로 일관됨)
+  const doCounts = fetchCounts()
+
   try{
     const params = { page: page.value-1, size: size.value, sort: `updatedAt,${sortDir.value}` } // ✅ 토글 반영
     if (q.value) params.q = q.value
@@ -279,6 +320,9 @@ async function fetchList(){
     const reason = e?.response?.data?.message || e?.message || '오류'
     error.value = `목록을 불러오지 못했습니다. ${status ? `[${status}] ` : ''}${reason}`
     rows.value=[]; total.value=0; totalPages.value=0
+  } finally {
+    // 카운트가 아직이면 마무리까지 대기 (UI가 급하면 이 await 제거해도 무방)
+    await doCounts
   }
 }
 
@@ -340,7 +384,7 @@ async function saveNotice(){
       msg.value = '작성되었습니다.'
     }
     closeEditor()
-    await fetchList()
+    await fetchList() // ✅ 저장 후 목록/카운트 함께 갱신
   }catch(e){
     const status = e?.response?.status
     const reason = e?.response?.data?.message || e?.message || '오류'
@@ -365,7 +409,7 @@ async function doDelete(){
     await api.delete(`/admin/notices/${confirm.id}`)
     msg.value = '삭제되었습니다.'
     closeConfirm()
-    await fetchList()
+    await fetchList() // ✅ 삭제 후 목록/카운트 함께 갱신
   }catch(e){
     const status = e?.response?.status
     const reason = e?.response?.data?.message || e?.message || '오류'

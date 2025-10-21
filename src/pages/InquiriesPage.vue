@@ -6,12 +6,12 @@
       <p class="badge" style="margin-top:8px;font-size: 16px;">관리자 전용</p>
     </div>
 
-    <!-- 상태 탭 -->
+    <!-- 상태 탭 + (갯수) -->
     <div class="tabs card">
       <button v-for="t in tabs" :key="t.key"
               class="tab-btn" :class="{active: tab===t.key}"
               @click="switchTab(t.key)">
-        {{ t.label }}
+        {{ t.label }} <span class="tab-badge">({{ counts[t.key] ?? 0 }})</span>
       </button>
     </div>
 
@@ -145,10 +145,10 @@ import { ref, reactive, computed } from 'vue'
 import api from '@/api/http'
 
 const tabs = [
-  { key:'ALL', label:'전체' },
-  { key:'OPEN', label:'미답변' },
+  { key:'ALL',      label:'전체' },
+  { key:'OPEN',     label:'미답변' },
   { key:'ANSWERED', label:'답변' },
-  { key:'CLOSED', label:'종료' },
+  { key:'CLOSED',   label:'종료' },
 ]
 const tab = ref('ALL')
 
@@ -160,6 +160,14 @@ const total = ref(0)
 const totalPages = ref(0)
 const msg = ref('')
 const error = ref('')
+
+/* 탭 (갯수) 상태 */
+const counts = reactive({
+  ALL: 0,
+  OPEN: 0,
+  ANSWERED: 0,
+  CLOSED: 0,
+})
 
 /* 생성시각 정렬: desc=최신순, asc=오래된순 */
 const sortDir = ref('desc')
@@ -182,8 +190,36 @@ const pageNumbersInGroup = computed(()=>{ const arr=[]; for(let n=groupStart.val
 
 function switchTab(k){ if(tab.value===k) return; tab.value=k; page.value=1; fetchList() }
 
+/* (갯수) 계산: 검색(q)을 반영해 상태별 총합을 병렬로 조회 */
+async function fetchCounts(){
+  const base = { page: 0, size: 1, sort: `createdAt,${sortDir.value}` } // totalElements만 필요
+  if (q.value) base.q = q.value
+
+  const req = (statusKey) => {
+    const params = { ...base }
+    if (statusKey !== 'ALL') params.status = statusKey
+    return api.get('/admin/inquiries', { params })
+  }
+
+  try{
+    const [allRes, openRes, ansRes, clsRes] = await Promise.all([
+      req('ALL'), req('OPEN'), req('ANSWERED'), req('CLOSED')
+    ])
+    counts.ALL      = allRes?.data?.totalElements ?? 0
+    counts.OPEN     = openRes?.data?.totalElements ?? 0
+    counts.ANSWERED = ansRes?.data?.totalElements ?? 0
+    counts.CLOSED   = clsRes?.data?.totalElements ?? 0
+  }catch(_e){
+    // 실패해도 화면 진행에는 영향 없게
+  }
+}
+
 async function fetchList(){
   error.value=''; msg.value=''
+
+  // 목록과 동시에 카운트 갱신
+  const doCounts = fetchCounts()
+
   try{
     const params = { page: page.value-1, size: size.value, sort:`createdAt,${sortDir.value}` }
     if (q.value) params.q = q.value
@@ -198,8 +234,11 @@ async function fetchList(){
     const reason = e?.response?.data?.reason || e?.message || '오류'
     error.value = `목록 실패: ${status ? `[${status}] ` : ''}${reason}`
     rows.value=[]; total.value=0; totalPages.value=0
+  } finally {
+    await doCounts
   }
 }
+
 function goPage(n){ if(n<1 || (totalPages.value && n>totalPages.value)) return; page.value=n; fetchList() }
 function prevGroup(){ const n=groupStart.value-1; if(n>=1) goPage(n) }
 function nextGroup(){ const n=groupEnd.value+1; if(n<=totalPages.value) goPage(n) }
@@ -264,6 +303,7 @@ fetchList()
 .tabs{ display:flex; gap:8px; }
 .tab-btn{ border:1px solid var(--border); background:transparent; color:var(--text); padding:6px 10px; border-radius:8px; cursor:pointer; font-size:16px; }
 .tab-btn.active{ background:var(--primary); border-color:var(--primary); color:#fff; }
+.tab-badge{ opacity:.9; }
 
 .input{ background:#0b1324; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px 10px; outline:none; height:60px; font-size:16px; }
 .input:focus{ border-color:#2b3b66; box-shadow:0 0 0 3px rgba(59,130,246,.2); }

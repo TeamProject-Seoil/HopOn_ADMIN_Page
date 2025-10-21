@@ -611,20 +611,34 @@ fetchList()
 .btn-ghost:hover{ background:#1a2540; }
 
 /* 모달 공통 */
+/* ✨ 화면 전체를 적당히 어둡게 (투명X) */
+:root, :host{
+  --backdrop-dim: rgba(0,0,0,.55); /* 0.45~0.65로 취향 조절 */
+}
+
 .modal-backdrop{
   position:fixed; inset:0; display:grid; place-items:center;
-  background:#000;
+  background: var(--backdrop-dim);   /* ✅ 이제 흐릿한 어두움 */
+  /* 선택: 약간의 블러로 집중감 추가 */
+  backdrop-filter: blur(2px);
   z-index:60;
   animation:fadeIn .12s ease;
 }
-@keyframes fadeIn { from{ opacity:0 } to{ opacity:1 } }
 
+/* 모달 카드(안쪽)는 진하게 검정 */
 .modal-card{
-  background:var(--card); color:#fff;
-  border:1px solid #1b2744; border-radius:16px; box-shadow:0 15px 35px rgba(0,0,0,.45);
-  transform:translateY(6px); animation:pop .14s ease forwards;
+  background:#000;      /* 그대로 모달만 검정 */
+  color:#fff;
+  border:1px solid #1b2744;
+  border-radius:16px;
+  box-shadow:0 20px 60px rgba(0,0,0,.55);
+  transform:translateY(6px);
+  animation:pop .14s ease forwards;
 }
-@keyframes pop { to { transform:translateY(0) } }
+
+/* (선택) 모달 열릴 때 body 스크롤 잠금 */
+body:has(.modal-backdrop){ overflow:hidden; }
+
 
 .modal-header{
   display:flex; justify-content:space-between; align-items:center; padding:8px 10px 10px; border-bottom:1px solid #1b2744;
@@ -676,6 +690,13 @@ fetchList()
 
 /* 카드 */
 .card{ background:var(--card); border:1px solid #1b2744; border-radius:12px; padding:12px; }
+.card.modal-card { 
+  background:#000 !important;  /* 모달 카드만 완전 검정 */
+}
+
+.confirm-card, .license-card{
+  background:#000 !important;  /* (원하면) 두 모달 타입 모두 강제 검정 */
+}
 .stack{ display:flex; flex-direction:column; gap:10px; }
 
 /* === 대기 버튼 보이는 문제 강제 해결 === */

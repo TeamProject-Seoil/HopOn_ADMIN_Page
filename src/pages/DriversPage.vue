@@ -1,8 +1,8 @@
 <template>
   <div class="stack">
     <div class="card">
-      <h2 style="margin:0">기사 관리</h2>
-      <p class="badge" style="margin-top:8px">승인 관리</p>
+      <h1 style="margin:0">기사 관리</h1>
+      <p class="badge" style="margin-top:8px;font-size: 16px;">승인 관리</p>
     </div>
 
     <!-- 탭 -->
@@ -514,6 +514,7 @@ fetchList()
   border:1px solid var(--border);
   background:transparent; color:var(--text);
   padding:6px 10px; border-radius:8px; cursor:pointer;
+  font-size: 16px;
 }
 .tab-btn.active{ background:var(--primary); border-color:var(--primary); color:#fff; }
 .tab-badge{ opacity:.9; }
@@ -521,13 +522,13 @@ fetchList()
 /* 폼 공통 */
 .input{
   background:#0b1324; border:1px solid var(--border); color:var(--text);
-  border-radius:8px; padding:8px 10px; outline:none;
+  border-radius:8px; padding:8px 10px; outline:none; height: 60px; font-size: 16px;
 }
 .input:focus{ border-color:#2b3b66; box-shadow:0 0 0 3px rgba(59,130,246,.2); }
 
 .toolbar{ display:flex; gap:8px; margin-bottom:10px; align-items:center; }
-.search-btn{ display:inline-flex; align-items:center; gap:6px; writing-mode:horizontal-tb; }
-.sort-select{ width:160px; }
+.search-btn{ display:inline-flex; align-items:center; gap:6px; writing-mode:horizontal-tb; height: 60px; }
+.sort-select{ width:160px; height: 60px; font-size: 16px;}
 
 /* 오류 박스 */
 .error-box{ padding:10px; border:1px solid #5a2a2a; background:#3b1d1d; color:#fca5a5; border-radius:8px; margin-bottom:10px; }
@@ -720,4 +721,87 @@ button.btn-warning:disabled{
   filter: saturate(.9);
   cursor:not-allowed;
 }
+/* =========================
+   🔧 PREVIEW(자격증) 모달 확대 + 타이포 키움
+   ========================= */
+
+/* 이 화면 기본 글자 크기 살짝 ↑ */
+:root, :host{
+  --fs-base: 15px;     /* 필요시 16px까지 올려도 OK */
+  --fs-small: 13.5px;
+}
+.card, .tabs, .toolbar, .row-line, .pager-wrap { font-size: var(--fs-base); }
+.sub { font-size: calc(var(--fs-small)); line-height: 1.55; }
+
+/* 버튼 텍스트/클릭 타겟 ↑ */
+.btn, .btn-ghost, .btn-danger, .btn-warning {
+  font-size: 14.5px;
+  padding: 10px 14px;
+  min-height: 40px;
+  border-radius: 12px;
+}
+
+/* ───────── 미리보기 모달(license-card) 크게 ───────── */
+.license-card{
+  width: min(980px, 96vw);   /* 840 → 980 */
+  max-height: 92vh;          /* 90 → 92 */
+  padding: 14px;
+  font-size: var(--fs-base);
+}
+
+.modal-header{ padding: 10px 12px; }
+.modal-title{ gap: 12px; font-size: 16px; }
+.icon-circle{ width: 32px; height: 32px; }
+
+/* 모달 내부 레이아웃 여유 ↑ */
+.modal-body{
+  gap: 18px;
+  max-height: 78vh;          /* 70 → 78 */
+  padding: 12px 10px 10px;
+}
+
+/* 이미지 박스 자체를 더 크게 */
+.license-box{
+  padding: 8px;
+  max-width: min(66vw, 720px);                  /* 60vw/520px → 66vw/720px */
+  max-height: min(78vh, 820px);                 /* 62vh/640px → 78vh/820px */
+}
+
+/* 실제 이미지가 차지할 수 있는 최대 사이즈 ↑ */
+.license-img{
+  max-width: 100%;
+  max-height: min(76vh, 800px);                 /* 58vh/600px → 76vh/800px */
+  object-fit: contain;
+}
+
+/* 우측 정보영역도 타이포/여백 ↑ */
+.license-info{ min-width: 260px; }
+.license-info-table{
+  font-size: 15px;                               /* 14 → 15 */
+  line-height: 1.7;
+  margin-top: 6px;
+}
+.license-info-table td{ padding: 10px 12px; }
+.license-info-table td:first-child{
+  width: 120px;
+  font-weight: 600;
+}
+
+/* 작은 화면 대응(세로로 쌓일 때도 크게 보이도록) */
+@media (max-width: 600px){
+  .license-card{ width: 96vw; }
+  .modal-body{ flex-direction: column; max-height: 80vh; }
+  .license-box{ max-width: 92vw; max-height: 64vh; }
+  .license-img{ max-width: 90vw; max-height: 62vh; }
+  .license-info{ width: 100%; }
+}
+
+/* ───────── 확인 모달도 타이포 약간 ↑ (선택) ───────── */
+.confirm-card{ font-size: var(--fs-base); }
+.confirm-msg{ font-size: 15px; }
+
+/* 리스트 행 가독성 ↑ (선택) */
+.title-line{ font-size: 15.5px; }
+.badge{ font-size: 13px; }
+
 </style>

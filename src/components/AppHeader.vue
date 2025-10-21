@@ -93,25 +93,56 @@ const goSettings = () => router.push({ name: 'settings' })
 
 <style>
 .logo{
-  width: 25px; height: 25px;
+  width: 36px; height: 36px;           /* ↑ 로고 크게 */
   display: block;
 }
 
 .header{
   display:flex; align-items:center; justify-content:space-between;
-  padding:12px 16px; border-bottom:1px solid var(--border);
+  padding:16px 20px;                    /* ↑ 헤더 높이/여백 증가 */
+  border-bottom:1px solid var(--border);
   background:#0b1220; color:#e5e7eb;
+  min-height: 80px;
+  font-size: 15.5px;                    /* 약간만 키움 (본문 크기 영향 최소화) */
 }
 
-.brand{ display:flex; align-items:center; gap:8px; font-weight:700; }
+.brand{
+  display:flex; align-items:center; gap:10px;
+  font-weight:700;
+  font-size: 18px;                      /* 브랜드 텍스트 조금 더 큼 */
+}
 
-.right{ display:flex; align-items:center; gap:10px; }
+.right{ display:flex; align-items:center; gap:12px; }
 
+/* 아바타 사이즈 ↑ */
 .avatar{
-  width:32px; height:32px; border-radius:999px; overflow:hidden;
-  display:grid; place-items:center; background:#1a2540; color:#cbd5e1; font-weight:700;
+  width:40px; height:40px;              /* 32 → 40 */
+  border-radius:999px; overflow:hidden;
+  display:grid; place-items:center;
+  background:#1a2540; color:#cbd5e1; font-weight:700;
   flex-shrink:0;
 }
 .avatar-img{ width:100%; height:100%; object-fit:cover; display:block; }
-.name{ white-space:nowrap; }
+
+/* 이름도 살짝 키움 */
+.name{ white-space:nowrap; font-size:15px; }
+
+/* 헤더 내부 버튼들만 살짝 크게 */
+.header .btn,
+.header .btn-ghost{
+  padding:10px 14px;                    /* 클릭타겟 커짐 */
+  border-radius:12px;
+  font-size:14px;
+  min-height: 40px;                     /* 손가락 터치 기준 확보 */
+  line-height: 1.1;
+}
+
+/* 톱니버튼(⚙️) 단독도 크기 맞춰줌 */
+.header .btn-ghost[title="설정"]{
+  width:40px; height:40px;              /* 정사각 버튼 */
+  display:grid; place-items:center;
+  padding:0;
+  font-size:18px;                       /* 이모지 크기 */
+}
+
 </style>

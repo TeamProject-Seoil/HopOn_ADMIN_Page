@@ -146,6 +146,9 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 </script>
 
 <style scoped>
+footer {
+  min-height: 60px;
+}
 .fixed-footer{
   position: fixed; left: 0; right: 0; bottom: 0; height: 44px;
   background: var(--panel); border-top: 1px solid var(--border);

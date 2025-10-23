@@ -6,6 +6,9 @@
   --primary:#3b82f6;
   --border:#1f2a44;
   --danger:#ef4444;
+  /* ✅ 추가 */
+  --warning:#f59e0b;
+  --warning-600:#d97706;
 }
 *{box-sizing:border-box}
 html,body,#app{height:100%}

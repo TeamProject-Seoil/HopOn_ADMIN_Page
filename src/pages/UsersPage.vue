@@ -27,7 +27,7 @@
         관리자 <span class="tab-badge">({{ counts.admin }})</span>
       </button>
 
-      <router-link class="btn new-btn" :to="{ name: 'user-create' }">새 계정 생성</router-link>
+      <router-link class="btn new-btn" :to="{ name: 'user-create' }">새 관리자 계정 생성</router-link>
     </div>
 
     <!-- 검색/필터 -->

@@ -1,4 +1,3 @@
-<!-- src/pages/UserCreatePage.vue -->
 <template>
   <div class="page">
     <!-- 상단 헤더/안내는 전체 폭 -->
@@ -160,16 +159,19 @@
         </div>
       </div>
 
-      <!-- ▶ 우측: 관리자 목록 -->
+      <!-- 관리자 목록 -->
       <div class="col">
         <div class="card">
           <div class="admin-list-head">
             <h2 class="section-title">관리자 목록</h2>
             <div class="tools">
               <input class="input sm" v-model.trim="search" placeholder="관리자 검색 (아이디/이름)" @keyup.enter="fetchAdmins(1)" />
-              <button class="btn-ghost sm" @click="fetchAdmins(1)">
-                검색
-              </button>
+              <button class="btn-ghost sm" @click="fetchAdmins(1)">검색</button>
+
+              <div class="seg sm">
+                <button class="seg-btn" :class="{ active: sortDir === 'desc' }" @click="setSort('desc')">최신순</button>
+                <button class="seg-btn" :class="{ active: sortDir === 'asc' }" @click="setSort('asc')">오래된순</button>
+              </div>
             </div>
           </div>
 
@@ -182,6 +184,7 @@
               <li v-for="a in admins" :key="a.userNum" class="admin-item">
                 <div class="ai-main">
                   <div class="ai-name">
+                    <img :src="a.profileImage || '/path/to/default-image.jpg'" alt="Profile Image" class="profile-img" />
                     <strong>{{ a.username || a.userid }}</strong>
                     <span class="ai-id">@{{ a.userid }}</span>
                   </div>
@@ -202,15 +205,15 @@
               </li>
             </ul>
 
-            <!-- 간단 페이지네이션 -->
             <div class="pager-footer" v-if="totalAdmins > size">
-              <button class="pager-btn" :disabled="page<=1" @click="fetchAdmins(page-1)">이전</button>
+              <button class="pager-btn" :disabled="page <= 1" @click="fetchAdmins(page - 1)">이전</button>
               <span class="pager-meta">{{ page }} / {{ totalPages }}</span>
-              <button class="pager-btn" :disabled="page>=totalPages" @click="fetchAdmins(page+1)">다음</button>
+              <button class="pager-btn" :disabled="page >= totalPages" @click="fetchAdmins(page + 1)">다음</button>
             </div>
           </div>
         </div>
       </div>
+
     </div>
 
     <!-- 확인 모달 -->
@@ -263,6 +266,13 @@ const loading = ref(false)
 const confirm = reactive({ open: false })
 function openConfirm () { if (!canSubmit.value) return; confirm.open = true }
 function closeConfirm () { if (loading.value) return; confirm.open = false }
+// 정렬 상태 (기본: 최신순)
+const sortDir = ref('desc')
+function setSort(dir){
+  if (sortDir.value === dir) return
+  sortDir.value = dir
+  fetchAdmins(1) // 첫 페이지로 재조회
+}
 
 /* 아이디 검사/중복확인 */
 const idRegex = /^[a-zA-Z0-9._-]{4,32}$/
@@ -356,7 +366,8 @@ function fmtDate(iso){
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-async function fetchAdmins(toPage = 1){
+// 페이지 네비게이션을 위해 추가된 메소드
+async function fetchAdmins(toPage = 1) {
   adminError.value = ''
   try {
     const { data } = await api.get('/admin/users', {
@@ -365,22 +376,22 @@ async function fetchAdmins(toPage = 1){
         q: search.value || undefined,
         page: toPage - 1,
         size,
-        sort: 'createdAt,desc'
-      }
-    })
-    admins.value = (data?.content || [])
-    totalAdmins.value = data?.totalElements ?? admins.value.length
-    page.value = toPage
+        sort: `createdAt,${sortDir.value}`, // 정렬 상태 적용
+      },
+    });
+    admins.value = data?.content || [];
+    totalAdmins.value = data?.totalElements ?? admins.value.length;
+    page.value = toPage;
   } catch (e) {
-    const status = e?.response?.status
-    const reason = e?.response?.data?.reason || e?.message || '불러오기 실패'
-    adminError.value = `관리자 목록을 불러오지 못했습니다. ${status ? `[${status}] ` : ''}${reason}`
-    admins.value = []
-    totalAdmins.value = 0
+    const status = e?.response?.status;
+    const reason = e?.response?.data?.reason || e?.message || '불러오기 실패';
+    adminError.value = `관리자 목록을 불러오지 못했습니다. ${status ? `[${status}] ` : ''}${reason}`;
+    admins.value = [];
+    totalAdmins.value = 0;
   }
 }
 
-/* 최초 로드 */
+
 fetchAdmins()
 </script>
 
@@ -510,6 +521,16 @@ fetchAdmins()
 .tools{ display:flex; gap:6px; align-items:center; }
 .error-box{ padding:10px; border:1px solid #5a2a2a; background:#3b1d1d; color:#fca5a5; border-radius:8px; }
 .empty{ color:var(--muted); font-size:14px; }
+/* 프로필 이미지 스타일 */
+/* 프로필 이미지 스타일 */
+.profile-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 8px;
+}
+
 
 .admin-list{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
 .admin-item{
@@ -528,10 +549,45 @@ fetchAdmins()
 .mini{ display:block; font-size:11.5px; color:#9fb1d6; }
 .mini.strong{ color:#e5e7eb; font-weight:700; }
 
+/* 정렬 세그먼트 (검색 우측) */
+.seg.sm{
+  display:inline-flex; align-items:center; gap:0;
+  border:1px solid var(--border); border-radius:10px; overflow:hidden;
+  height:40px; margin-left:6px;
+}
+.seg-btn{
+  background:transparent; color:var(--text); border:none;
+  padding:0 12px; height:100%; cursor:pointer; font-weight:700;
+}
+.seg-btn + .seg-btn{ border-left:1px solid var(--border); }
+.seg-btn.active{
+  background:var(--primary); color:#fff;
+}
+
 /* 간단 페이저 */
-.pager-footer{ margin-top:10px; display:flex; justify-content:center; align-items:center; gap:8px; }
-.pager-btn{ background:transparent; color:#e5e7eb; border:1px solid var(--border); border-radius:8px; padding:6px 10px; }
-.pager-meta{ color:#94a3b8; font-size:12px; }
+/* 페이지네이션 스타일 */
+.pager-footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.pager-btn {
+  background: transparent;
+  color: #e5e7eb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.pager-meta {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+
 
 /* ─ 모달 ─ */
 .modal{ position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; }
@@ -552,6 +608,7 @@ fetchAdmins()
 .summary .row span{ color: #9fb1d6; }
 .summary .row strong{ color: var(--text); }
 .dialog-actions{ display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+
 
 /* 반응형: 1열로 전환 */
 @media (max-width: 1024px){

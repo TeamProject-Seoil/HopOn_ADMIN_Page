@@ -32,7 +32,7 @@
 
     <!-- 본문: 좌측 폼 / 우측 관리자 목록 -->
     <div class="content-grid">
-      <!-- ◀ 좌측: 폼 (레이블 좌측 정렬 + 가운데 배치 느낌 유지) -->
+      <!-- ◀ 좌측: 폼 -->
       <div class="col">
         <div class="card">
           <form class="form centered" @submit.prevent="openConfirm">
@@ -159,7 +159,7 @@
         </div>
       </div>
 
-      <!-- 관리자 목록 -->
+      <!-- ▶ 우측: 관리자 목록 -->
       <div class="col">
         <div class="card">
           <div class="admin-list-head">
@@ -184,7 +184,19 @@
               <li v-for="a in admins" :key="a.userNum" class="admin-item">
                 <div class="ai-main">
                   <div class="ai-name">
-                    <img :src="a.profileImage || '/path/to/default-image.jpg'" alt="Profile Image" class="profile-img" />
+                    <!-- ✅ 아바타: 강제 36×36 고정 -->
+                    <div class="avatar" :style="avatarStyle">
+                      <img
+                        v-if="a.avatarUrl"
+                        :src="a.avatarUrl"
+                        class="avatar-img"
+                        :width="AVATAR" :height="AVATAR"
+                        alt=""
+                        @error="onAvatarError($event, a)"
+                      />
+                      <span v-else>{{ (a.username || a.userid).slice(0,2).toUpperCase() }}</span>
+                    </div>
+
                     <strong>{{ a.username || a.userid }}</strong>
                     <span class="ai-id">@{{ a.userid }}</span>
                   </div>
@@ -243,11 +255,15 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/http'
 
 const router = useRouter()
+
+/* 아바타 픽셀 고정치 */
+const AVATAR = 36
+const avatarStyle = { '--avatar-size': `${AVATAR}px` }
 
 /* ───────── 좌측: 생성 폼 상태 ───────── */
 const form = reactive({ userid: '', password: '', username: '' })
@@ -271,7 +287,7 @@ const sortDir = ref('desc')
 function setSort(dir){
   if (sortDir.value === dir) return
   sortDir.value = dir
-  fetchAdmins(1) // 첫 페이지로 재조회
+  fetchAdmins(1)
 }
 
 /* 아이디 검사/중복확인 */
@@ -366,9 +382,19 @@ function fmtDate(iso){
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-// 페이지 네비게이션을 위해 추가된 메소드
+/* 아바타 에러 → 이니셜 폴백 */
+function onAvatarError(e, a) { try { URL.revokeObjectURL(a.avatarUrl) } catch {} ; a.avatarUrl = '' }
+
+/* Blob URL 정리 */
+function cleanupAvatars(list = admins.value){
+  for (const u of list) { if (u?.avatarUrl) { try { URL.revokeObjectURL(u.avatarUrl) } catch {} ; u.avatarUrl = '' } }
+}
+onBeforeUnmount(() => cleanupAvatars())
+
+/* 페이지 네비게이션을 위해 추가된 메소드 */
 async function fetchAdmins(toPage = 1) {
   adminError.value = ''
+  cleanupAvatars() // 이전 것 정리
   try {
     const { data } = await api.get('/admin/users', {
       params: {
@@ -376,21 +402,36 @@ async function fetchAdmins(toPage = 1) {
         q: search.value || undefined,
         page: toPage - 1,
         size,
-        sort: `createdAt,${sortDir.value}`, // 정렬 상태 적용
+        sort: `createdAt,${sortDir.value}`,
       },
-    });
-    admins.value = data?.content || [];
-    totalAdmins.value = data?.totalElements ?? admins.value.length;
-    page.value = toPage;
+    })
+
+    // 목록 + 아바타 url 슬롯 준비
+    const list = (data?.content || []).map(x => ({ ...x, avatarUrl: '' }))
+    admins.value = list
+    totalAdmins.value = data?.totalElements ?? list.length
+    page.value = toPage
+
+    // 이미지(인증 필요) → blob으로 받아서 ObjectURL
+    await nextTick()
+    const tasks = list.map(async (u) => {
+      try {
+        const res = await api.get(`/admin/users/${encodeURIComponent(u.userid)}/profile-image`, { responseType: 'blob' })
+        u.avatarUrl = URL.createObjectURL(res.data)
+      } catch {
+        u.avatarUrl = '' // 이니셜 폴백
+      }
+    })
+    await Promise.allSettled(tasks)
+    admins.value = [...admins.value]
   } catch (e) {
-    const status = e?.response?.status;
-    const reason = e?.response?.data?.reason || e?.message || '불러오기 실패';
-    adminError.value = `관리자 목록을 불러오지 못했습니다. ${status ? `[${status}] ` : ''}${reason}`;
-    admins.value = [];
-    totalAdmins.value = 0;
+    const status = e?.response?.status
+    const reason = e?.response?.data?.reason || e?.message || '불러오기 실패'
+    adminError.value = `관리자 목록을 불러오지 못했습니다. ${status ? `[${status}] ` : ''}${reason}`
+    admins.value = []
+    totalAdmins.value = 0
   }
 }
-
 
 fetchAdmins()
 </script>
@@ -403,6 +444,9 @@ fetchAdmins()
   --danger:#ef4444; --success:#16a34a;
   --ok:#16a34a; --warn:#f59e0b;
   --fs-base:15px; --fs-small:13.5px;
+
+  /* 아바타 사이즈 변수 */
+  --avatar-size: 36px;
 }
 
 /* 페이지 하단 패딩으로 푸터와 겹침 방지 */
@@ -439,7 +483,7 @@ fetchAdmins()
 }
 .field-row{
   display: grid;
-  grid-template-columns: 160px 1fr;   /* 레이블 고정폭 */
+  grid-template-columns: 160px 1fr;
   align-items: start;
   gap: 12px;
 }
@@ -519,26 +563,39 @@ fetchAdmins()
 .section-title{ margin:0 0 8px; font-size:18px; font-weight:900; }
 .admin-list-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
 .tools{ display:flex; gap:6px; align-items:center; }
-.error-box{ padding:10px; border:1px solid #5a2a2a; background:#3b1d1d; color:#fca5a5; border-radius:8px; }
+.error-box{ padding:10px; border:1px solid #5a2a2a; background:#3b1d1d; color:#fca5a5; }
 .empty{ color:var(--muted); font-size:14px; }
-/* 프로필 이미지 스타일 */
-/* 프로필 이미지 스타일 */
-.profile-img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  margin-right: 8px;
+
+/* ✅ 아바타 — 전역 CSS 오버라이드 방지용 강한 고정 */
+.avatar{
+  width:var(--avatar-size) !important;
+  height:var(--avatar-size) !important;
+  flex:0 0 var(--avatar-size) !important;
+  border-radius:9999px !important;
+  overflow:hidden !important;
+  display:grid !important;
+  place-items:center !important;
+  background:#1a2540 !important;
+  color:#cbd5e1 !important;
+  font-weight:700 !important;
+}
+.avatar > img.avatar-img{
+  width:var(--avatar-size) !important;
+  height:var(--avatar-size) !important;
+  max-width:none !important;
+  max-height:none !important;
+  object-fit:cover !important;
+  display:block !important;
 }
 
-
+/* 리스트 스타일 */
 .admin-list{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
 .admin-item{
   display:flex; justify-content:space-between; align-items:center; gap:12px;
   border:1px solid #1b2744; border-radius:10px; padding:10px 12px; background:#0b1324;
 }
 .ai-main{ min-width:0; }
-.ai-name{ display:flex; gap:8px; align-items:baseline; }
+.ai-name{ display:flex; gap:8px; align-items:center; }
 .ai-id{ color:#9fb1d6; font-size:12px; }
 .ai-sub{ color:#94a3b8; font-size:12px; }
 .badge-role{ border:1px solid #233153; background:#12203f; color:#c9d5ff; padding:2px 8px; border-radius:999px; font-size:12px; }
@@ -565,7 +622,6 @@ fetchAdmins()
 }
 
 /* 간단 페이저 */
-/* 페이지네이션 스타일 */
 .pager-footer {
   margin-top: 10px;
   display: flex;
@@ -573,7 +629,6 @@ fetchAdmins()
   align-items: center;
   gap: 8px;
 }
-
 .pager-btn {
   background: transparent;
   color: #e5e7eb;
@@ -581,13 +636,10 @@ fetchAdmins()
   border-radius: 8px;
   padding: 6px 10px;
 }
-
 .pager-meta {
   color: #94a3b8;
   font-size: 12px;
 }
-
-
 
 /* ─ 모달 ─ */
 .modal{ position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; }
@@ -608,7 +660,6 @@ fetchAdmins()
 .summary .row span{ color: #9fb1d6; }
 .summary .row strong{ color: var(--text); }
 .dialog-actions{ display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
-
 
 /* 반응형: 1열로 전환 */
 @media (max-width: 1024px){

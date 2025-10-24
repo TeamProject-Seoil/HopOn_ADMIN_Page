@@ -83,7 +83,6 @@ const onSubmit = async () => {
   } catch (e) {
     const status = e?.response?.status
     const reason = e?.response?.headers?.['x-reason'] || ''
-    // 백엔드가 기존 세션이 있고 강제 교체가 아니라고 판단하면 409 + X-Reason 반환
     if (status === 409 && reason === 'ALREADY_LOGGED_IN_OTHER_DEVICE') {
       pendingLogin.value = { userid: userid.value, password: password.value }
       showReplaceModal.value = true
@@ -124,27 +123,58 @@ onMounted(() => {
 <style scoped>
 /* 레이아웃 (다크 배경) */
 .page {
-  min-height: 100dvh;
+  position: relative;
+  min-height: 100svh;              /* 모바일 주소창 변화 대응 */
   display: grid;
   place-items: center;
   padding: 24px;
   color-scheme: dark;
-  background:
-    radial-gradient(60% 60% at 20% 10%, rgba(59,130,246,.10), transparent 60%),
-    radial-gradient(60% 60% at 80% 90%, rgba(16,185,129,.10), transparent 60%),
-    linear-gradient(180deg, #0b0f1a, #0a0a0a);
   color: #e5e7eb;
+
+  /* 중앙 세로 그라데이션 완전 제거 + 좌/우 라디얼만 남김 */
+  background: #0b0f1a
+    radial-gradient(42% 60% at 18% 45%,
+      rgba(59,130,246,.18) 0%,
+      rgba(59,130,246,.10) 40%,
+      rgba(59,130,246,0)  58%),
+    radial-gradient(42% 60% at 82% 60%,
+      rgba(16,185,129,.15) 0%,
+      rgba(16,185,129,.08) 40%,
+      rgba(16,185,129,0)  58%) !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-position: center !important;
 }
 
+/* 상/하단 비네팅(중앙 패널 강조) */
+.page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(0,0,0,.35), transparent 60%),
+    radial-gradient(120% 90% at 50% 110%, rgba(0,0,0,.35), transparent 60%);
+}
+
+/* 패널 */
 .panel {
   width: 380px;
   max-width: 92vw;
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(15, 23, 42, 0.78);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); /* iOS/Safari */
   border: 1px solid #1f2937;
   border-radius: 20px;
-  box-shadow: 0 12px 36px rgba(0,0,0,.45);
+  box-shadow:
+    0 24px 60px rgba(0,0,0,.55),
+    0 10px 26px rgba(0,0,0,.35);
   padding: 24px 24px 12px;
+}
+
+/* 블러 미지원 브라우저 폴백 */
+@supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+  .panel { background: rgba(15, 23, 42, 0.92); }
 }
 
 /* 브랜드 헤더 */
@@ -159,7 +189,7 @@ onMounted(() => {
   display: grid; place-items: center;
   border-radius: 12px;
   background: linear-gradient(135deg, #22d3ee, #6366f1);
-  color: white; font-weight: 800; font-size: 18px;
+  color: #fff; font-weight: 800; font-size: 18px;
   box-shadow: 0 10px 24px rgba(34,211,238,.25);
 }
 .title h1 {
@@ -169,7 +199,7 @@ onMounted(() => {
   letter-spacing: .2px;
   color: #f1f5f9;
 }
-.title p {
+.title p {                /* 잘못된 `title p` 제거 */
   margin: 2px 0 0;
   color: #94a3b8;
   font-size: 12px;
@@ -198,6 +228,15 @@ label { font-size: 12px; color: #cbd5e1; }
 }
 .input:active { transform: translateY(0.5px); }
 
+/* 접근성: 키보드 포커스 가시성 */
+.input:focus-visible,
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(34,211,238,0.28);
+  border-color: #22d3ee;
+}
+
+/* 버튼 */
 .btn {
   width: 100%;
   display: inline-flex;
@@ -207,7 +246,7 @@ label { font-size: 12px; color: #cbd5e1; }
   border: 0;
   border-radius: 12px;
   background: linear-gradient(135deg, #06b6d4, #4f46e5);
-  color: white;
+  color: #fff;
   font-weight: 700;
   cursor: pointer;
   transition: transform .035s ease, filter .2s ease;
@@ -231,6 +270,7 @@ label { font-size: 12px; color: #cbd5e1; }
 .warn { color: #f59e0b; }
 .error { color: #fca5a5; }
 
+/* 푸터 */
 .foot {
   margin: 14px 4px 0;
   text-align: center;
@@ -273,13 +313,11 @@ label { font-size: 12px; color: #cbd5e1; }
   font-size: 14px;
   line-height: 1.6;
 }
-.modal-body .muted {
-  color: #94a3b8;
-  font-size: 12px;
-}
+.modal-body .muted { color: #94a3b8; font-size: 12px; }
 .modal-actions {
   display: flex; gap: 8px; justify-content: flex-end;
   padding: 12px 16px;
   background: #0b1220;
 }
 </style>
+

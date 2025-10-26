@@ -62,7 +62,14 @@
 
           <div class="row-actions">
             <button class="btn-ghost" @click="openDetail(it.id)">보기</button>
-            <button class="btn" v-if="it.status!=='CLOSED'" @click="openReply(it.id)">답변</button>
+
+            <!-- ✅ 답변 탭(ANSWERED)에서는 '답변' 버튼 제거 -->
+            <button
+              class="btn"
+              v-if="it.status!=='CLOSED' && tab!=='ANSWERED'"
+              @click="openReply(it.id)"
+            >답변</button>
+
             <button class="btn-warning" v-if="it.status!=='CLOSED'" @click="openCloseConfirm(it.id)">종료</button>
           </div>
         </div>
@@ -120,6 +127,7 @@
           </div>
 
           <div class="confirm-actions">
+            <!-- 상세에서는 유지(요청은 목록만 제거였음) -->
             <button class="btn" @click="openReply(detail.data.id)">이 문의에 답변</button>
             <button class="btn-warning" v-if="detail.data.status!=='CLOSED'" @click="openCloseConfirm(detail.data.id)">종료</button>
           </div>

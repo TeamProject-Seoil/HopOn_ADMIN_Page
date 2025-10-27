@@ -1,9 +1,11 @@
+<!-- src/components/AppHeader.vue -->
 <template>
   <header class="header">
-    <div class="brand">
+    <!-- ▼ 브랜드 전체를 클릭하면 대시보드로 -->
+    <router-link class="brand" :to="{ name: 'dashboard' }" title="대시보드로 이동">
       <span><img class="logo" :src="logoSrc" alt="" /></span>
       <span>HopOn 관리자 센터</span>
-    </div>
+    </router-link>
 
     <div v-if="auth.isAuthenticated" class="right">
       <button class="btn-ghost" @click="goSettings" title="설정">⚙️</button>
@@ -41,7 +43,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const logoSrc = logoFile
 
-const avatarUrl = ref('') // Blob URL 저장
+const avatarUrl = ref('')
 
 const revokeAvatar = () => {
   if (avatarUrl.value) {
@@ -51,37 +53,22 @@ const revokeAvatar = () => {
 }
 
 const loadAvatar = async () => {
-  // 인증 안 되었거나 userid 없으면 스킵
-  if (!auth.isAuthenticated || !auth.userid) {
-    revokeAvatar()
-    return
-  }
-  // 일단 정리 후 시작
+  if (!auth.isAuthenticated || !auth.userid) { revokeAvatar(); return }
   revokeAvatar()
   await nextTick()
   try {
-    // 백엔드 BLOB 엔드포인트 호출 (권한 헤더는 axios 인스턴스에서 자동 포함)
     const res = await api.get(`/admin/users/${encodeURIComponent(auth.userid)}/profile-image`, {
       responseType: 'blob'
     })
     avatarUrl.value = URL.createObjectURL(res.data)
-  } catch {
-    // 이미지가 없거나 404면 폴백: 이니셜
-    revokeAvatar()
-  }
+  } catch { revokeAvatar() }
 }
 
-// 최초 진입 시도
 onMounted(loadAvatar)
-// auth 상태가 바뀌면 다시 읽기 (로그인/유저 변경/프로필 업뎃 등)
 watch(() => [auth.isAuthenticated, auth.userid], loadAvatar)
-// 컴포넌트 사라질 때 Object URL 정리
 onBeforeUnmount(revokeAvatar)
 
-const onAvatarError = () => {
-  // 브라우저가 이미지 렌더에 실패한 경우도 폴백
-  revokeAvatar()
-}
+const onAvatarError = () => { revokeAvatar() }
 
 const onLogout = async () => {
   revokeAvatar()
@@ -92,31 +79,45 @@ const goSettings = () => router.push({ name: 'settings' })
 </script>
 
 <style>
+/* ───────── 작은 스케일업을 변수로 관리 ───────── */
+:root, :host {
+  --hdr-font: 16px;     /* 15.5 → 16 */
+  --brand-font: 19px;   /* 18 → 19 */
+  --logo-size: 42px;    /* 36 → 42 */
+  --avatar-size: 44px;  /* 40 → 44 */
+  --btn-min-h: 42px;    /* 40 → 42 */
+}
+
 .logo{
-  width: 36px; height: 36px;           /* ↑ 로고 크게 */
+  width: var(--logo-size);
+  height: var(--logo-size);
   display: block;
 }
 
 .header{
   display:flex; align-items:center; justify-content:space-between;
-  padding:16px 20px;                    /* ↑ 헤더 높이/여백 증가 */
+  padding:16px 20px;
   border-bottom:1px solid var(--border);
   background:#0b1220; color:#e5e7eb;
-  min-height: 80px;
-  font-size: 15.5px;                    /* 약간만 키움 (본문 크기 영향 최소화) */
+  min-height: calc(var(--btn-min-h) + 38px);
+  font-size: var(--hdr-font);
 }
 
+/* router-link로 바꾸었으므로 a 스타일 리셋 */
 .brand{
   display:flex; align-items:center; gap:10px;
   font-weight:700;
-  font-size: 18px;                      /* 브랜드 텍스트 조금 더 큼 */
+  font-size: var(--brand-font);
+  color: inherit;
+  text-decoration: none;
 }
+.brand:focus-visible{ outline:2px solid #3b82f6; outline-offset:4px; border-radius:8px; }
 
 .right{ display:flex; align-items:center; gap:12px; }
 
-/* 아바타 사이즈 ↑ */
 .avatar{
-  width:40px; height:40px;              /* 32 → 40 */
+  width: var(--avatar-size);
+  height: var(--avatar-size);
   border-radius:999px; overflow:hidden;
   display:grid; place-items:center;
   background:#1a2540; color:#cbd5e1; font-weight:700;
@@ -124,25 +125,22 @@ const goSettings = () => router.push({ name: 'settings' })
 }
 .avatar-img{ width:100%; height:100%; object-fit:cover; display:block; }
 
-/* 이름도 살짝 키움 */
-.name{ white-space:nowrap; font-size:15px; }
+.name{ white-space:nowrap; font-size: calc(var(--hdr-font) - 0.25px); }
 
-/* 헤더 내부 버튼들만 살짝 크게 */
 .header .btn,
 .header .btn-ghost{
-  padding:10px 14px;                    /* 클릭타겟 커짐 */
+  padding:10px 14px;
   border-radius:12px;
-  font-size:14px;
-  min-height: 40px;                     /* 손가락 터치 기준 확보 */
+  font-size:14.25px;
+  min-height: var(--btn-min-h);
   line-height: 1.1;
 }
 
-/* 톱니버튼(⚙️) 단독도 크기 맞춰줌 */
 .header .btn-ghost[title="설정"]{
-  width:40px; height:40px;              /* 정사각 버튼 */
+  width: var(--btn-min-h);
+  height: var(--btn-min-h);
   display:grid; place-items:center;
   padding:0;
-  font-size:18px;                       /* 이모지 크기 */
+  font-size:19px;
 }
-
 </style>

@@ -68,6 +68,20 @@
       </div>
     </div>
 
+    <!-- ✅ 선택됨이 있을 때 표시되는 일괄 삭제 바 -->
+    <div v-if="selectedCount > 0" class="card bulkbar">
+      <div class="bulk-left">
+        <strong>{{ selectedCount }}</strong>명 선택됨
+        <button class="btn-ghost xs" type="button" @click="selectAllOnPage">이 페이지 모두 선택</button>
+        <button class="btn-ghost xs" type="button" @click="clearSelection">선택 해제</button>
+      </div>
+      <div class="bulk-right">
+        <button class="btn danger" type="button" :disabled="actionLoading" @click="askBulkDelete">
+          선택 항목 삭제
+        </button>
+      </div>
+    </div>
+
     <!-- 리스트 -->
     <div class="card list-card">
       <div v-if="loading" class="empty">불러오는 중…</div>
@@ -80,6 +94,12 @@
             <div class="row-line">
               <!-- 왼쪽 영역 -->
               <div class="left">
+                <!-- ✅ 선택 체크박스 -->
+                <label class="check-wrap" :title="isSelected(u) ? '선택됨' : '선택'">
+                  <input type="checkbox" :checked="isSelected(u)" @change="toggleSelect(u,$event)" />
+                  <span class="check"></span>
+                </label>
+
                 <div class="avatar">
                   <img
                     v-if="u.avatarUrl"
@@ -129,7 +149,7 @@
                 <div class="action-row">
                   <span class="pill" :class="u.loggedIn ? 'green' : 'gray'">{{ u.loggedIn ? '로그인됨' : '오프라인' }}</span>
                   <button
-                    class="btn xs danger"
+                    class="btn xs"
                     :disabled="!u.loggedIn || actionLoading === u.userNum"
                     @click="askLogout(u)"
                     title="모든 활성 세션 강제 종료"
@@ -167,6 +187,18 @@
                     권한변경
                   </button>
                 </div>
+
+                <!-- 4) ✅ 단건 삭제 -->
+                <div class="action-row">
+                  <button
+                    class="btn xs danger"
+                    :disabled="actionLoading === u.userNum"
+                    @click="askDelete(u)"
+                    title="이 계정을 삭제합니다"
+                  >
+                    삭제
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -192,18 +224,32 @@
 
         <!-- 요약 -->
         <div class="summary" v-if="confirm.type !== 'logout'">
-          <div class="row">
-            <span>대상</span><strong>{{ confirm.user?.username || confirm.user?.userid }}</strong>
-          </div>
-
-          <template v-if="confirm.type==='status'">
-            <div class="row"><span>현재 상태</span><strong>{{ statusKo(confirm.user?.approvalStatus || 'PENDING') }}</strong></div>
-            <div class="row"><span>변경 후</span><strong>{{ statusKo(confirm.nextStatus) }}</strong></div>
+          <!-- 단건 삭제/상태/권한 변경 -->
+          <template v-if="confirm.type !== 'bulk-delete'">
+            <div class="row">
+              <span>대상</span><strong>{{ confirm.user?.username || confirm.user?.userid }}</strong>
+            </div>
+            <template v-if="confirm.type==='status'">
+              <div class="row"><span>현재 상태</span><strong>{{ statusKo(confirm.user?.approvalStatus || 'PENDING') }}</strong></div>
+              <div class="row"><span>변경 후</span><strong>{{ statusKo(confirm.nextStatus) }}</strong></div>
+            </template>
+            <template v-else-if="confirm.type==='role'">
+              <div class="row"><span>현재 권한</span><strong>{{ roleKo(confirm.user?.role) }}</strong></div>
+              <div class="row"><span>변경 후</span><strong>{{ roleKo(confirm.nextRole) }}</strong></div>
+            </template>
           </template>
 
-          <template v-else-if="confirm.type==='role'">
-            <div class="row"><span>현재 권한</span><strong>{{ roleKo(confirm.user?.role) }}</strong></div>
-            <div class="row"><span>변경 후</span><strong>{{ roleKo(confirm.nextRole) }}</strong></div>
+          <!-- ✅ 일괄 삭제 요약 -->
+          <template v-else>
+            <div class="row">
+              <span>선택 수</span><strong>{{ selectedCount }}명</strong>
+            </div>
+            <div class="row" v-if="selectedCount > 0">
+              <span>예시</span>
+              <strong class="ellipsis" :title="selectedPreview">
+                {{ selectedPreview }}
+              </strong>
+            </div>
           </template>
         </div>
 
@@ -219,7 +265,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
+import { reactive, ref, onMounted, watch, nextTick, onBeforeUnmount, computed } from 'vue'
 import api from '@/api/http'
 
 const loading = ref(false)
@@ -237,10 +283,30 @@ const rows = ref([])
 const totalElements = ref(0)
 const totalPages = ref(0)
 
+/* ✅ 내 아이디 (자기 자신 제외용) */
+const myId = ref('')
+
+async function fetchMyId () {
+  try {
+    const { data } = await api.get('/users/me')
+    myId.value = data?.userid || ''
+  } catch {
+    myId.value = ''
+  }
+}
+
+/* ✅ 선택 상태 (Set<userid>) */
+const selected = ref(new Set())
+const selectedCount = computed(() => selected.value.size)
+const selectedPreview = computed(() => {
+  const ids = Array.from(selected.value)
+  return ids.slice(0, 5).join(', ') + (ids.length > 5 ? ` 외 ${ids.length - 5}` : '')
+})
+
 /* 확인 모달 상태 */
 const confirm = reactive({
   open: false,
-  type: '',          // 'logout' | 'status' | 'role'
+  type: '',          // 'logout' | 'status' | 'role' | 'delete' | 'bulk-delete'
   title: '',
   desc: '',
   okText: '확인',
@@ -299,7 +365,7 @@ async function searchUsers({ role, status=null, query='', pageNo=0, pageSize=20 
   }
 }
 
-/* 카운트 */
+/* 카운트 (자기 자신 제외) */
 async function refreshCounts(){
   const pageSize = 200
   let pageNo = 0
@@ -315,6 +381,7 @@ async function refreshCounts(){
     if (list.length === 0) break
 
     for (const u of list) {
+      if (u.userid === myId.value) continue
       if (u.role === 'ROLE_USER') user++
       else if (u.role === 'ROLE_ADMIN') admin++
       else if (u.role === 'ROLE_DRIVER') {
@@ -356,7 +423,26 @@ function onAvatarError(e, u){
 }
 onBeforeUnmount(() => revokeAllAvatars())
 
-/* 목록 */
+/* ✅ 선택 관련 */
+function isSelected(u){
+  return selected.value.has(u.userid)
+}
+function toggleSelect(u, ev){
+  const checked = ev?.target?.checked ?? !isSelected(u)
+  if (checked) selected.value.add(u.userid)
+  else selected.value.delete(u.userid)
+  selected.value = new Set(selected.value)
+}
+function selectAllOnPage(){
+  for (const u of rows.value) selected.value.add(u.userid)
+  selected.value = new Set(selected.value)
+}
+function clearSelection(){
+  selected.value.clear()
+  selected.value = new Set()
+}
+
+/* 목록 (자기 자신 제외) */
 async function reloadList(){
   loading.value = true
   try{
@@ -369,13 +455,15 @@ async function reloadList(){
       await searchUsers({ role, status, query: q.value, pageNo: page.value, pageSize: size.value })
 
     revokeAllAvatars()
-    let list = (content || []).map(u => ({
-      ...u,
-      avatarUrl: '',
-      loggedIn: !!u.loggedIn,
-      _nextStatus: u.approvalStatus || 'PENDING',
-      _nextRole: u.role || 'ROLE_USER',
-    }))
+    let list = (content || [])
+      .filter(u => u.userid !== myId.value)           // ←★ 자기 자신 제외
+      .map(u => ({
+        ...u,
+        avatarUrl: '',
+        loggedIn: !!u.loggedIn,
+        _nextStatus: u.approvalStatus || 'PENDING',
+        _nextRole: u.role || 'ROLE_USER',
+      }))
 
     /* 로그인 상태 필터 (클라이언트 측) */
     if (loginFilter.value !== 'ALL') {
@@ -387,7 +475,7 @@ async function reloadList(){
       page.value = 0
     } else {
       rows.value = list
-      totalElements.value = te
+      totalElements.value = te - (content?.some(u=>u.userid===myId.value) ? 1 : 0) // 페이지 합계 보정(대략)
       totalPages.value = tp
     }
 
@@ -441,6 +529,26 @@ function askChangeRole(u){
   confirm.desc = '아래와 같이 권한을 변경합니다.'
   confirm.okText = '권한변경'
 }
+/* ✅ 단건 삭제 확인 */
+function askDelete(u){
+  confirm.open = true
+  confirm.type = 'delete'
+  confirm.user = u
+  confirm.title = '계정 삭제'
+  confirm.desc = '해당 계정을 삭제합니다. 이 작업은 되돌릴 수 없습니다.'
+  confirm.okText = '삭제'
+}
+/* ✅ 일괄 삭제 확인 */
+function askBulkDelete(){
+  if (selectedCount.value === 0) return
+  confirm.open = true
+  confirm.type = 'bulk-delete'
+  confirm.user = null
+  confirm.title = '선택 항목 삭제'
+  confirm.desc = '선택된 모든 계정을 삭제합니다. 이 작업은 되돌릴 수 없습니다.'
+  confirm.okText = '삭제'
+}
+
 function closeConfirm(){
   if (actionLoading.value) return
   confirm.open = false
@@ -450,19 +558,13 @@ function closeConfirm(){
 
 /* ───────── 모달 확인 처리: 확인 즉시 닫기 ───────── */
 async function onConfirm(){
-  if (!confirm.user) return
-
-  // 1) 현재 선택값 스냅샷
-  const user = confirm.user
   const type = confirm.type
+  const user = confirm.user
   const nextStatus = confirm.nextStatus
   const nextRole = confirm.nextRole
 
-  // 2) 모달 먼저 닫기 (UI 깔끔)
   closeConfirm()
-
-  // 3) 서버 처리
-  actionLoading.value = user.userNum
+  actionLoading.value = user?.userNum ?? 'bulk'
   try{
     if (type === 'logout'){
       await api.post(`/admin/users/${encodeURIComponent(user.userid)}/sessions/revoke-all`)
@@ -470,7 +572,20 @@ async function onConfirm(){
       await api.post(`/admin/users/${encodeURIComponent(user.userid)}/approval`, { status: nextStatus })
     } else if (type === 'role'){
       await api.post(`/admin/users/${encodeURIComponent(user.userid)}/role`, { role: nextRole })
+    } else if (type === 'delete'){
+      await api.delete(`/admin/users/${encodeURIComponent(user.userid)}`)
+      if (selected.value.has(user.userid)) {
+        selected.value.delete(user.userid)
+        selected.value = new Set(selected.value)
+      }
+    } else if (type === 'bulk-delete'){
+      const ids = Array.from(selected.value)
+      if (ids.length > 0) {
+        await api.post('/admin/users/bulk-delete', { userids: ids })
+        clearSelection()
+      }
     }
+
     await reloadList()
     await refreshCounts()
   } finally {
@@ -481,8 +596,9 @@ async function onConfirm(){
 /* 탭/상태 변경 시 페이지 초기화 */
 watch([activeTab, driverStatus], () => { page.value = 0 })
 
-/* 최초 로드 */
+/* 최초 로드: 내 아이디 먼저 가져오고 -> 카운트/목록 */
 onMounted(async () => {
+  await fetchMyId()
   await refreshCounts()
   await reloadList()
 })
@@ -492,16 +608,19 @@ async function switchTab(tab){
   if (activeTab.value === tab) return
   activeTab.value = tab
   page.value = 0
+  clearSelection()
   await reloadList()
 }
 async function nextPage(){
   if (page.value + 1 >= totalPages.value) return
   page.value++
+  clearSelection()
   await reloadList()
 }
 async function prevPage(){
   if (page.value <= 0) return
   page.value--
+  clearSelection()
   await reloadList()
 }
 </script>
@@ -516,7 +635,6 @@ async function prevPage(){
 
   --fs-base:15px; --fs-small:13.5px;
 
-  /* 기사관리 화면과 동일한 크기 */
   --avatar-size:36px;
 }
 
@@ -555,12 +673,19 @@ async function prevPage(){
 .narrow{ min-width: 140px; }    /* 콤팩트 셀렉트 */
 .input.xs{ padding:6px 8px; height:auto; font-size:12px; }
 
+/* ✅ 일괄 삭제 바 */
+.bulkbar{
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+}
+.bulk-left{ display:flex; align-items:center; gap:10px; color:#cbd5e1; }
+.bulk-right{ display:flex; align-items:center; gap:8px; }
+.btn.xs{ padding:6px 8px; font-size:12px; }
+
 /* 버튼 */
 .btn{
   background:linear-gradient(135deg, #06b6d4, #4f46e5); color:#fff;
   border:1px solid transparent; border-radius:10px; padding:10px 12px; cursor:pointer; font-weight:800;
 }
-.btn.xs{ padding:6px 8px; font-size:12px; }
 .btn.danger{ background:linear-gradient(135deg, var(--danger), #f59e0b); color:#fff; }
 .btn-ghost{
   background:transparent; color:#e5e7eb; border:1px solid var(--border);
@@ -592,6 +717,26 @@ async function prevPage(){
   flex-wrap:nowrap;
 }
 .input.narrow{ width: auto; }
+
+/* ✅ 체크박스 */
+.check-wrap{
+  position:relative; inline-size:20px; block-size:20px;
+  display:grid; place-items:center;
+}
+.check-wrap input{
+  appearance:none; -webkit-appearance:none; inline-size:0; block-size:0; position:absolute; opacity:0;
+}
+.check{
+  inline-size:16px; block-size:16px; border-radius:4px;
+  border:1px solid var(--border); background:#0b1324;
+  display:inline-block; position:relative;
+}
+.check-wrap input:checked + .check{
+  border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,.25);
+}
+.check-wrap input:checked + .check::after{
+  content:''; position:absolute; inset:3px; background:#4f46e5; border-radius:2px;
+}
 
 /* 아바타 고정 */
 .users-admin .row-card .avatar{
@@ -666,7 +811,6 @@ async function prevPage(){
 .dialog-actions{ display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
 .btn.ghost{ background:transparent; color:#e5e7eb; border:1px solid var(--border); }
 
-/* 반응형 */
 @media (max-width: 640px){
   .search-row.one-line{ flex-wrap:wrap; }
   .ellipsis{ max-width:56vw; }

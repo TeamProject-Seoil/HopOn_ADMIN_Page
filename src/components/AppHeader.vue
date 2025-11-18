@@ -37,7 +37,7 @@ import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api/http'
-import logoFile from '@/assets/hopon-logo.svg'
+import logoFile from '@/assets/HopOn-logo.svg'
 
 const router = useRouter()
 const auth = useAuthStore()

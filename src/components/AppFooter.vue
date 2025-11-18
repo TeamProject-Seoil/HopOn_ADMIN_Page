@@ -35,7 +35,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import logoFile from '@/assets/hopon-logo.svg'
+import logoFile from '@/assets/HopOn-logo.svg'
 
 /* ── 브랜드/버전/환경 ───────────────────────────────────── */
 const brandName = import.meta.env.VITE_BRAND_NAME || 'HopOn'

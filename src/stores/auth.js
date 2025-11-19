@@ -1,6 +1,7 @@
 // src/stores/auth.js
 import { defineStore } from 'pinia'
 import api from '@/api/http'
+import { safeRandomUUID } from '@/utils/safeUuid'
 
 const CLIENT_TYPE = 'ADMIN_APP'
 const STORAGE_KEY = 'hopon_admin_auth'
@@ -15,7 +16,7 @@ function generateDeviceId() {
   const key = 'hopon_admin_device'
   let id = localStorage.getItem(key)
   if (!id) {
-    id = 'web-' + crypto.randomUUID()
+    id = 'web-' + safeRandomUUID()   // 🔹 crypto.randomUUID() 대신
     localStorage.setItem(key, id)
   }
   return id
